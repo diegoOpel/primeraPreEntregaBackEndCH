@@ -7,24 +7,15 @@ class ProductManager {
     this.path = path;
   }
   async #checkDB(){
-    try{
-      this.products = JSON.parse(await fs.promises.readFile(this.path))
-    }catch{
-      error => {throw new Error(error)}
-    }
+    this.products = JSON.parse(await fs.promises.readFile(this.path))
   }
   async #updateDB(){
-    try{
-      await fs.promises.writeFile(this.path, JSON.stringify(this.products))
-    }catch{
-      error => {throw new Error(error)}
-    }
-    
+      await fs.promises.writeFile(this.path, JSON.stringify(this.products)) 
   }
   async addProduct({title, description, code, price, status=true, stock, category, thumbnails=[]}){
-    try{
-      await this.#checkDB()
-      const isInArray = this.products.some(product => product.code === code)
+    await this.#checkDB()
+    const isInArray = this.products.some(product => product.code === code)
+    return new Promise((res,rej)=>{
       if(isInArray === false){
         this.products.push({
           id: uuidv4(),
@@ -37,56 +28,73 @@ class ProductManager {
           category: category,
           thumbnails: thumbnails    
         });
-        await this.#updateDB()
+        this.#updateDB().then(
+          res("Product added")
+        )
       }else{
-        throw new Error("Repeated product or items lacking")
+        rej("Repeated product or items lacking")
       }
-    }catch{error => {throw new Error(error)}}
+    })
+    
   }
   async getProducts(){
     await this.#checkDB()
-    return this.products
+    return new Promise((res,rej)=>{
+      if(this.products){
+        res(this.products)
+      }else{
+        rej("No products found")
+      }
+    })
   }
   async getProductById(id){
     await this.#checkDB()
     const productFound = this.products.find(product => product.id === id)
-    if (productFound){
-      return productFound
-    }else{
-      throw new Error("Product not found")
-    }
+    return new Promise((res,rej)=>{
+      if(productFound){
+        res(productFound)
+      }else{
+        rej("The product isn't in Products DB")
+      }
+    })
   }
   async updateProduct({id, title, description, code, price, status, stock, category, thumbnails}){
     await this.#checkDB()
     const indexFound = this.products.findIndex(product => product.id === id)
-    if(indexFound !== -1){
-      this.products[indexFound] = {
-        id: id,
-        title: title,
-        description: description,
-        code: code,
-        price: price,
-        status: status,
-        stock: stock,
-        category: category,
-        thumbnails: thumbnails 
+    return new Promise((res,rej)=>{
+      if(indexFound !== -1){
+        this.products[indexFound] = {
+          id: id,
+          title: title,
+          description: description,
+          code: code,
+          price: price,
+          status: status,
+          stock: stock,
+          category: category,
+          thumbnails: thumbnails 
+        }
+        this.#updateDB().then(
+          res("Producto actualizado")  
+        )
+      }else{
+        rej("Product not found") 
       }
-      await this.#updateDB()
-      return "Producto actualizado"
-    }else{
-      throw new Error("Not found")
-    }
+    })
   }
   async deleteProduct(id){
     await this.#checkDB()
     const indexFound = this.products.findIndex(product => product.id === id)
-    if(indexFound !== -1){
-      this.products.splice(indexFound,indexFound+1)
-      await this.#updateDB()
-      return "Producto eliminado"
-    }else{
-      throw new Error("Not found")
-    }
+    return new Promise((res,rej)=>{
+      if(indexFound !== -1){
+        this.products.splice(indexFound,indexFound+1)
+        this.#updateDB().then(
+          res("Product deleted") 
+        )
+      }else{
+        rej("Product not found")
+      }
+    })
   }
 }
 export const productManager = new ProductManager("./src/products.json");
